@@ -1,0 +1,19 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+
+Program.Sub.Main.End
+
+Program.Sub.NextPart.Start
+v.Local.ssql.Declare(string)
+v.Local.lret.Declare(long)
+v.Local.ssql.Set("SELECT PARTID FROM GAB_4856_NUMBER")
+f.ODBC.Connection!conZ.openconnection(v.Ambient.PDSN,v.Ambient.PUser,v.Ambient.PPass)
+f.ODBC.Connection!conZ.executeandreturn(v.Local.ssql,v.Local.lret)
+f.Intrinsic.Math.Add(v.Local.lret,1,v.Local.lret)
+f.Intrinsic.String.Build("UPDATE GAB_4856_NUMBER SET PARTID={0}",V.Local.lret,v.Local.ssql)
+f.ODBC.Connection!conZ.execute(v.Local.ssql)
+f.ODBC.Connection!conZ.Close
+f.in.variable.addrv("rPart",v.local.lret)
+Program.Sub.NextPart.End
