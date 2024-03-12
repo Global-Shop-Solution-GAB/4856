@@ -1,0 +1,56 @@
+Program.Sub.ScreenSU.Start
+Gui.frmPart..Create
+Gui.frmPart..Caption("Auto Part Number")
+Gui.frmPart..Size(4545,2175)
+Gui.frmPart..MinX(0)
+Gui.frmPart..MinY(0)
+Gui.frmPart..Position(0,0)
+Gui.frmPart..BackColor(-2147483633)
+Gui.frmPart..MousePointer(0)
+Gui.frmPart.cmdNextPart.Create(Button)
+Gui.frmPart.cmdNextPart.Size(2685,375)
+Gui.frmPart.cmdNextPart.Position(195,795)
+Gui.frmPart.cmdNextPart.Caption("Get Next Part Number")
+Gui.frmPart.cmdNextPart.Event(Click,cmdNextPart_Click)
+Gui.frmPart.lblPartNumber.Create(Label,"",True,3675,255,0,240,345,True,0,"Arial",8,-2147483633,0)
+Program.Sub.ScreenSU.End
+Program.Sub.Preflight.Start
+Program.External.Include.Library("GAB_4856_NEXT_PART_INCREMENT.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+v.Local.sret.Declare(string)
+
+'Order Entry Script 1
+F.Intrinsic.Control.If(V.Caller.Hook,=,"12620")
+	F.Intrinsic.Control.CallSub(nextPart)
+	f.Intrinsic.Variable.argtovar("rPart",v.local.sret)
+	V.Passed.000071.Set(v.Local.sret)
+'Order Entry Long Form
+f.Intrinsic.Control.ElseIf(v.Caller.Hook,=,"12410")
+	f.Intrinsic.Control.CallSub(nextPart)
+	f.Intrinsic.Variable.ArgToVar("rPart",v.Local.sret)
+	v.Passed.000052.Set(v.Local.sret)
+'Quote Entry Script 1
+f.Intrinsic.Control.ElseIf(v.Caller.Hook,=,"10670")
+	F.Intrinsic.Control.CallSub(nextPart)
+	f.Intrinsic.Variable.argtovar("rPart",v.local.sret)
+	V.Passed.000052.Set(v.Local.sret)	
+'Quote Populate
+F.Intrinsic.Control.Elseif(v.Caller.Hook,=,"10260")
+	v.Passed.000201.Set("Next Part")
+'Order Populate
+f.Intrinsic.Control.ElseIf(v.Caller.Hook,=,"12440")
+	v.Passed.000162.Set("Next Part")
+F.Intrinsic.Control.Else
+	gui.frmPart..Show
+F.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+
+Program.Sub.cmdNextPart_Click.Start
+v.Local.sret.Declare(string)
+F.Intrinsic.Control.CallSub(nextPart)
+f.Intrinsic.Variable.argtovar("rPart",v.local.sret)
+gui.frmPart.lblPartNumber.Caption(v.Local.sret)
+Program.Sub.cmdNextPart_Click.End
