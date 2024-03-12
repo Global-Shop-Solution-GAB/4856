@@ -1,0 +1,1148 @@
+Program.Sub.ScreenSU.Start
+Gui.frmQuoteCreate..Create
+Gui.frmQuoteCreate..Caption("Quote Creation")
+Gui.frmQuoteCreate..Size(7365,7890)
+Gui.frmQuoteCreate..MinX(0)
+Gui.frmQuoteCreate..MinY(0)
+Gui.frmQuoteCreate..Position(0,0)
+Gui.frmQuoteCreate..BackColor(-2147483633)
+Gui.frmQuoteCreate..MousePointer(0)
+Gui.frmQuoteCreate..Event(UnLoad,frmQuoteCreate_UnLoad)
+Gui.frmQuoteCreate.trvDrag.Create(TreeView)
+Gui.frmQuoteCreate.trvDrag.Size(6735,2910)
+Gui.frmQuoteCreate.trvDrag.Position(150,4200)
+Gui.frmQuoteCreate.lbl1.Create(Label,"Step 3: Drag and Drop CSV File Here",True,6495,255,0,165,3930,True,0,"Arial",8,-2147483633,0)
+Gui.frmQuoteCreate.lbl1.FontStyle(True,False,False,False,False)
+Gui.frmQuoteCreate.lbl2.Create(Label,"Step 1: Select Customer",True,4470,255,0,165,240,True,0,"Arial",8,-2147483633,0)
+Gui.frmQuoteCreate.lbl2.FontStyle(True,False,False,False,False)
+Gui.frmQuoteCreate.txtCustomer.Create(TextBox,"",True,1365,300,0,165,540,True,0,"Arial",8,-2147483643,1)
+Gui.frmQuoteCreate.cmdBrowse.Create(Button)
+Gui.frmQuoteCreate.cmdBrowse.Size(855,375)
+Gui.frmQuoteCreate.cmdBrowse.Position(1650,510)
+Gui.frmQuoteCreate.cmdBrowse.Caption("^")
+Gui.frmQuoteCreate.cmdBrowse.Event(Click,cmdBrowse_Click)
+Gui.frmQuoteCreate.lbl3.Create(Label,"Step 2: Select Creation",True,4470,255,0,165,1185,True,0,"Arial",8,-2147483633,0)
+Gui.frmQuoteCreate.lbl3.FontStyle(True,False,False,False,False)
+Gui.frmQuoteCreate.chkQuote.Create(CheckBox)
+Gui.frmQuoteCreate.chkQuote.Size(1260,360)
+Gui.frmQuoteCreate.chkQuote.Position(255,1470)
+Gui.frmQuoteCreate.chkQuote.Caption("Quote")
+Gui.frmQuoteCreate.chkQuote.Value(1)
+Gui.frmQuoteCreate.chkPart.Create(CheckBox)
+Gui.frmQuoteCreate.chkPart.Size(1560,360)
+Gui.frmQuoteCreate.chkPart.Position(255,2430)
+Gui.frmQuoteCreate.chkPart.Caption("Parts")
+Gui.frmQuoteCreate.chkRouters.Create(CheckBox)
+Gui.frmQuoteCreate.chkRouters.Size(1560,360)
+Gui.frmQuoteCreate.chkRouters.Position(255,2880)
+Gui.frmQuoteCreate.chkRouters.Caption("Routers")
+Gui.frmQuoteCreate.chkBOM.Create(CheckBox)
+Gui.frmQuoteCreate.chkBOM.Size(1980,360)
+Gui.frmQuoteCreate.chkBOM.Position(255,3300)
+Gui.frmQuoteCreate.chkBOM.Caption("Bill of Material")
+Gui.frmQuoteCreate.txtBOM.Create(TextBox,"",True,2835,300,0,2400,3360,True,0,"Arial",8,-2147483643,1)
+Gui.frmQuoteCreate.cmdBOMBrowse.Create(Button)
+Gui.frmQuoteCreate.cmdBOMBrowse.Size(855,375)
+Gui.frmQuoteCreate.cmdBOMBrowse.Position(5355,3330)
+Gui.frmQuoteCreate.cmdBOMBrowse.Caption("^")
+Gui.frmQuoteCreate.cmdBOMBrowse.Event(Click,cmdBOMBrowse_Click)
+Gui.frmQuoteCreate.chkSO.Create(CheckBox)
+Gui.frmQuoteCreate.chkSO.Size(2400,360)
+Gui.frmQuoteCreate.chkSO.Position(255,1950)
+Gui.frmQuoteCreate.chkSO.Caption("Sales Order")
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sBuildData.Declare(string)
+V.Global.sBuildRotr.Declare(string)
+V.Global.sBuildBOMs.Declare(string)
+Program.External.Include.Library("GAB_4856_NEXT_PART_INCREMENT.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.frmQuoteCreate_UnLoad.Start
+f.ODBC.Connection!con.Close
+f.Intrinsic.Control.End
+Program.Sub.frmQuoteCreate_UnLoad.End
+
+Program.Sub.Main.Start
+Gui.frmQuoteCreate.trvDrag.Event("DRAGDROPFILE",Dragdrop)
+f.Data.Dictionary.Create("dict")
+f.ODBC.Connection!con.openconnection(v.Ambient.PDSN,v.Ambient.PUser,v.Ambient.PPass)
+f.Intrinsic.UI.SetBrowserHotTypeAhead(true)
+gui.frmQuoteCreate..Show
+Program.Sub.Main.End
+
+Program.Sub.cmdBrowse_Click.Start
+V.Local.sRet.Declare(String)
+V.Local.sTitles.Declare(String)
+V.Local.iWidths.Declare(String)
+V.Local.ssql.Declare(String)
+
+F.intrinsic.string.split("Customer*!*Name Customer","*!*",V.local.sTitles)
+F.intrinsic.string.split("2000*!*3000","*!*",V.local.iWidths)
+
+V.Local.ssql.set("select Customer, NAME_CUSTOMER from V_CUSTOMER_MASTER")
+
+F.intrinsic.ui.browser("Select a Customer",con,v.Local.ssql,V.local.sTitles,V.local.iWidths,V.local.sRet)
+
+F.intrinsic.control.if(V.local.sRet,"=","***CANCEL***")
+F.intrinsic.control.else
+	F.intrinsic.string.split(V.local.sRet,"*!*",V.local.sRet)
+	gui.frmQuoteCreate.txtCustomer.Text(v.Local.sRet(0))
+F.Intrinsic.Control.endif
+Program.Sub.cmdBrowse_Click.End
+
+Program.Sub.DragDrop.Start
+f.Intrinsic.Control.Try
+	'Set Default Variables
+	v.Local.sFiles.Declare(String)
+	v.Local.sContent.Declare(string)
+	v.Local.sRowDetail.Declare(string)
+	v.Local.sNewPartNumber.Declare(string)
+	v.Local.sPartSuffix.Declare(string)
+	v.Local.sdescription.Declare(string)
+	v.Local.sHeaderDetail.Declare(string)
+	v.Local.sret.Declare(string)
+	v.Local.sQuote.Declare(string)
+	v.Local.sLine.Declare(string)
+	v.Local.sWC.Declare(string)
+	v.Local.sWCDesc.Declare(string)
+	v.Local.sCost.Declare(string)
+	v.Local.sSetupTime.Declare(string)
+	v.Local.sRunTime.Declare(string)
+	v.Local.sUM.Declare(string)
+	v.Local.sMatCost.Declare(string)
+	v.Local.sNewContents.Declare(string)
+	V.Local.STEMPFILE.Declare(STRING)
+	v.Local.sfilename.Declare(string)
+	v.Local.scustomer.Declare(string)
+	v.Local.sfiledir.Declare(string)
+	v.Local.sfile.Declare(string)
+	v.Local.sparams.Declare(string)
+	v.Local.stemp.Declare(string)
+	v.Local.ssql.Declare(string)
+	V.Local.sMessage.Declare(string)
+	v.Local.stype.Declare(string)
+	
+	v.Local.i.Declare(Long,0)
+	v.Local.j.Declare(long)
+	v.Local.x.Declare(long)
+	v.Local.xPlusOne.Declare(long)
+	V.Local.lOBOB.Declare(long)
+	v.Local.lret.Declare(long)
+	v.Local.isequence.Declare(long)
+	V.Local.fTimeConv.Declare(Float)
+	
+	v.Local.dDueDate.Declare(date,v.Ambient.Now)
+	
+	v.Local.bCheck.Declare(Boolean)
+	v.Local.bQuote.Declare(Boolean)
+	v.Local.bPart.Declare(Boolean)
+	v.Local.bRouters.Declare(Boolean)
+	v.Local.bBOM.Declare(Boolean)
+	v.Local.bSales.Declare(Boolean)
+	
+	v.Local.sQuote.Set("")
+	v.Local.scustomer.Set(v.Screen.frmQuoteCreate!txtCustomer.text)
+	v.Local.bQuote.Set(v.Screen.frmQuoteCreate!chkQuote.Value)
+	v.Local.bPart.Set(v.Screen.frmQuoteCreate!chkPart.value)
+	v.Local.bRouters.Set(v.Screen.frmQuoteCreate!chkRouters.value)
+	v.Local.bBOM.Set(v.Screen.frmQuoteCreate!txtBOM.text)
+	v.Local.bSales.Set(v.Screen.frmQuoteCreate!chkSO.Value)
+	
+	'Check if options are selected
+	f.Intrinsic.Control.If(v.Local.bQuote,=,false)
+	f.Intrinsic.Control.AndIf(v.Local.bPart,=,false)
+	f.Intrinsic.Control.AndIf(v.Local.bRouters,=,false)
+	f.Intrinsic.Control.AndIf(v.Local.bBOM,=,false)
+	f.Intrinsic.Control.AndIf(v.Local.bSales,=,false)
+		f.Intrinsic.UI.Msgbox("No options selected, exiting routine.")
+		f.Intrinsic.Control.ExitSub
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.UI.InvokeWaitDialog("Processing...")
+	f.Intrinsic.String.Split(v.Args.Files,"*!*",v.Local.sFiles)
+	f.Intrinsic.Control.For(v.Local.i,0,v.Local.sFiles.UBound,1)
+		'Check if multiple files
+		f.Intrinsic.Control.If(v.Local.sFiles.UBound,>,0)
+			f.Intrinsic.UI.Msgbox("Multiple files loaded, please select one.")
+			f.Intrinsic.UI.CloseWaitDialog
+			f.Intrinsic.Control.ExitSub
+		f.Intrinsic.Control.EndIf
+		
+		f.Intrinsic.File.File2String(v.Local.sFiles(V.Local.i),v.Local.sContent)
+		f.Intrinsic.String.Split(v.Local.sContent,v.Ambient.NewLine,v.Local.sContent)
+		f.Intrinsic.Math.Sub(v.Local.scontent.UBound,1,v.Local.lOBOB)
+		'Insert Header Details for the content
+		f.Intrinsic.String.SplitCSV(v.Local.sContent(0),v.Local.sHeaderDetail)
+		f.Intrinsic.Control.For(v.Local.x,0,67,1)
+			f.Intrinsic.string.Concat(v.Local.sNewContents,v.Local.sHeaderDetail(v.Local.x),",",v.Local.sNewContents)
+		f.Intrinsic.Control.Next(v.Local.x)
+		f.Intrinsic.string.Concat(v.Local.sNewContents,v.Ambient.NewLine,v.Local.sNewContents)
+					
+		f.Intrinsic.Control.For(v.Local.j,1,v.Local.lOBOB,1)
+			F.Intrinsic.Control.If(v.local.sContent(v.Local.j).trim,<>,"")
+				f.Intrinsic.String.SplitCSV(v.Local.sContent(v.Local.j),v.Local.sRowDetail)					
+				
+				'If part number field is blank, create one and write it back to the file immediately
+				f.Intrinsic.Control.If(v.Local.sRowDetail(36),=,"")
+					f.Intrinsic.Control.CallSub(nextPart)
+					f.Intrinsic.Variable.argtovar("rPart",v.local.sNewPartNumber)
+					'update the part number column
+					v.Local.sRowDetail(36).Set(v.Local.sNewPartNumber)
+					F.Intrinsic.Control.For(v.Local.x,0,67,1)
+						f.Intrinsic.string.Concat(v.Local.sNewContents,v.Local.sRowDetail(v.Local.x),",",v.Local.sNewContents)
+					f.Intrinsic.Control.Next(v.Local.x)
+					f.Intrinsic.string.Concat(v.Local.sNewContents,v.Ambient.NewLine,v.Local.sNewContents)
+				f.Intrinsic.Control.Else
+					'Current Part Number
+					v.Local.sNewPartNumber.Set(v.Local.sRowDetail(36))
+					F.Intrinsic.Control.For(v.Local.x,0,67,1)
+						f.Intrinsic.string.Concat(v.Local.sNewContents,v.Local.sRowDetail(v.Local.x),",",v.Local.sNewContents)
+					f.Intrinsic.Control.Next(v.Local.x)
+					f.Intrinsic.string.Concat(v.Local.sNewContents,v.Ambient.NewLine,v.Local.sNewContents)
+				f.Intrinsic.Control.EndIf
+				
+				'Format the quoting
+				f.Intrinsic.Control.If(v.Local.bQuote,=,true)	
+					v.Local.stype.Set("Q")
+					f.Intrinsic.Control.CallSub(uploadQTE,"sCUST",v.Local.scustomer.Trim,"sFGPart",v.Local.sNewPartNumber,"fQuantityR",v.Local.sRowDetail(23),"sPO","","fPrice",v.Local.sRowDetail(21),"sDesc",v.Local.sRowDetail(2),"sLongDesc",v.Local.sRowDetail(3),"sMat",v.Local.sRowDetail(4),"sPL",v.Local.sRowDetail(1),"sFlag",v.Local.stype)
+				f.Intrinsic.Control.EndIf
+				
+				'Format the sales order
+				f.Intrinsic.Control.If(v.Local.bSales,=,true)
+					v.Local.stype.Set("O")
+					f.Intrinsic.Control.CallSub(uploadQTE,"sCUST",v.Local.scustomer.Trim,"sFGPart",v.Local.sNewPartNumber,"fQuantityR",v.Local.sRowDetail(23),"sPO","","fPrice",v.Local.sRowDetail(21),"sDesc",v.Local.sRowDetail(2),"sLongDesc",v.Local.sRowDetail(3),"sMat",v.Local.sRowDetail(4),"sPL",v.Local.sRowDetail(1),"sFlag",v.Local.stype)
+				f.Intrinsic.Control.EndIf
+				
+				'Format the Part
+				f.Intrinsic.Control.If(v.Local.bPart,=,true)
+					f.Intrinsic.Control.CallSub(uploadPTS,"sPart",v.Local.sNewPartNumber,"sDesc",v.Local.srowdetail(2),"sLongDesc",v.Local.sRowDetail(3),"sPL",v.Local.sRowDetail(1),"fPrice",v.Local.sRowDetail(24))
+				f.Intrinsic.Control.EndIf
+				
+				'''''''''''''''''''''''''''''''''''''''''''''
+				'''''''''''''''''''''''''''''''''''''''''''''
+				'START OF ROUTING BEHEMOTH, Format the Router
+				'''''''''''''''''''''''''''''''''''''''''''''
+				'''''''''''''''''''''''''''''''''''''''''''''
+				f.Intrinsic.Control.If(v.Local.bRouters,=,true)
+					V.Local.isequence.Set(0)
+					F.Intrinsic.Control.For(v.Local.x,38,67,1)
+						f.Intrinsic.Control.If(v.Local.sRowDetail(v.Local.x).trim,<>,"")
+							f.Intrinsic.Math.Add(v.Local.isequence,100,v.Local.isequence)
+							f.Intrinsic.Control.If(v.local.x,<>,47)
+								'It's Labour 
+								'select the setup time according to OP Code
+								'Yawei Operation 8 or Yawei Operation 6
+								f.Intrinsic.Control.If(v.Local.x,=,52,"or",v.Local.x,=,54)
+									f.Intrinsic.String.Build("SELECT standard_setup, machine, description FROM OP_CODES WHERE OPERATION='{0}'",v.Local.sRowDetail(v.Local.x),v.Local.ssql)
+									f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+									f.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+									v.Local.sSetupTime.Set(v.Local.sret(0))
+									v.Local.sWC.Set(v.Local.sret(1))
+									v.Local.sWCDesc.Set(v.Local.sret(2))
+									f.Intrinsic.Math.Add(v.Local.x,1,v.Local.xPlusOne)
+									
+									'Convert into Parts Per Hour from Minutes per part
+									f.Intrinsic.Math.Add(v.Local.x,1,v.Local.xPlusOne)
+									v.Local.fTimeConv.Set(v.Local.sRowDetail(v.Local.xPlusOne))
+									f.Intrinsic.Control.If(v.Local.fTimeConv,<>,0)
+										f.Intrinsic.Math.Div(60,v.Local.fTimeConv,v.Local.fTimeConv)
+									f.Intrinsic.Control.EndIf
+									F.Intrinsic.Control.CallSub(uploadRTR,"Number",v.Local.sNewPartNumber,"Desc",v.Local.srowdetail(2),"PL",v.Local.sRowDetail(1),"LeadTime","","Qty10","","Qty9","","Qty8","","Qty7","","Qty6","","Qty5","","Qty4","","Qty3","","Qty2","","Qty1",v.Local.sRowDetail(23),"Seq_Desc",v.Local.sWCDesc,"UM","HR","Rate",v.Local.sCost,"RunTime",v.Local.fTimeConv,"Part","","LMO","L","Sequence",V.Local.iSequence,"WC",v.Local.sWC,"SetupTime",v.Local.sSetupTime,"Customer",v.Local.scustomer,"CustPart","","OpCode","")
+									
+								'LVP Press
+								f.Intrinsic.Control.ElseIf(v.Local.x,=,56)
+									f.Intrinsic.String.Build("SELECT standard_setup, machine, description FROM OP_CODES WHERE OPERATION='{0}'",v.Local.sRowDetail(v.Local.x),v.Local.ssql)
+									f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+									f.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+									v.Local.sSetupTime.Set(v.Local.sret(0))
+									v.Local.sWC.Set(v.Local.sret(1))
+									v.Local.sWCDesc.Set(v.Local.sret(2))
+									
+									'Convert into Parts Per Hour from Minutes per part
+									v.Local.fTimeConv.Set(v.Local.sRowDetail(v.Local.xPlusOne))
+									f.Intrinsic.Control.If(v.Local.fTimeConv,<>,0)
+										f.Intrinsic.Math.Div(60,v.Local.fTimeConv,v.Local.fTimeConv)
+									f.Intrinsic.Control.EndIf
+									F.Intrinsic.Control.CallSub(uploadRTR,"Number",v.Local.sNewPartNumber,"Desc",v.Local.srowdetail(2),"PL",v.Local.sRowDetail(1),"LeadTime","","Qty10","","Qty9","","Qty8","","Qty7","","Qty6","","Qty5","","Qty4","","Qty3","","Qty2","","Qty1",v.Local.sRowDetail(23),"Seq_Desc",v.Local.sWCDesc,"UM","HR","Rate",v.Local.sCost,"RunTime",v.Local.fTimeConv,"Part","","LMO","L","Sequence",V.Local.iSequence,"WC",v.Local.sWC,"SetupTime",v.Local.sSetupTime,"Customer",v.Local.scustomer,"CustPart","","OpCode","")
+									
+								'Yawei Operation 8, Yawei Operation 6 runtime, taken care of last step
+								f.Intrinsic.Control.Elseif(v.Local.x,=,53,"or",v.Local.x,=,55)
+									f.Intrinsic.Math.Sub(v.Local.isequence,100,v.Local.isequence)
+									
+								'LVP Press Operation, taken care of last step
+								f.Intrinsic.Control.ElseIf(v.Local.x,=,57)
+									f.Intrinsic.Math.Sub(v.Local.isequence,100,v.Local.isequence)
+									
+								'Outside Process
+								f.Intrinsic.Control.ElseIf(v.Local.x,=,64)
+									f.Intrinsic.String.Build("SELECT standard_setup, standard_runtime, unit_measure, rate, description, machine FROM OP_CODES WHERE OPERATION='{0}'",v.Local.sRowDetail(v.Local.x),v.Local.ssql)
+									f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+									F.Intrinsic.Control.If(v.Local.sret.Trim,<>,"")
+										f.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+										v.Local.sSetupTime.Set(v.Local.sret(0))
+										v.Local.sRunTime.Set(v.Local.sret(1))
+										v.Local.sUM.Set(v.Local.sret(2))
+										v.Local.sCost.Set(v.Local.sret(3))
+										v.Local.sWCDesc.Set(v.Local.sret(4))
+										v.Local.sWC.Set(v.Local.sret(5))
+										F.Intrinsic.Control.CallSub(uploadRTR,"Number",v.Local.sNewPartNumber,"Desc",v.Local.srowdetail(2),"PL",v.Local.sRowDetail(1),"LeadTime","","Qty10","","Qty9","","Qty8","","Qty7","","Qty6","","Qty5","","Qty4","","Qty3","","Qty2","","Qty1",v.Local.sRowDetail(23),"Seq_Desc",v.Local.sWCDesc,"UM",V.Local.sUM,"Rate",v.Local.sCost,"RunTime",v.Local.sRunTime,"Part",v.Local.sWC,"LMO","O","Sequence",V.Local.iSequence,"WC","","SetupTime",v.Local.sSetupTime,"Customer",v.Local.sCustomer,"CustPart","","OpCode",v.Local.sRowDetail(v.Local.x))
+									f.Intrinsic.Control.EndIf
+								f.Intrinsic.Control.Else		
+									'Standard Labour Sequence
+									'Convert into Parts Per Hour from Minutes per part
+									v.Local.fTimeConv.Set(v.Local.sRowDetail(v.Local.x))
+									f.Intrinsic.Control.If(v.Local.fTimeConv,<>,0)
+										f.Intrinsic.Math.Div(60,v.Local.fTimeConv,v.Local.fTimeConv)
+									f.Intrinsic.Control.EndIf
+									F.Intrinsic.String.Build("SELECT PROTOTYPE_WC FROM WORKGROUP_HEAD WHERE WORK_GROUP='{0}'",v.Local.sHeaderDetail(v.Local.x),v.Local.ssql)
+									f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sWC)
+									f.Intrinsic.String.Build("SELECT WC_NAME, STANDARD_COST FROM WORKCENTERS WHERE MACHINE='{0}'",v.Local.sWC,v.Local.ssql)
+									f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+									f.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+									v.Local.sWCDesc.set(v.Local.sret(0))
+									v.Local.sCost.Set(v.Local.sret(1))
+									'Hardcoded 15 minutes in for every setup sequence
+									v.Local.sSetupTime.Set("0.2500")
+									F.Intrinsic.Control.CallSub(uploadRTR,"Number",v.Local.sNewPartNumber,"Desc",v.Local.srowdetail(2),"PL",v.Local.sRowDetail(1),"LeadTime","","Qty10","","Qty9","","Qty8","","Qty7","","Qty6","","Qty5","","Qty4","","Qty3","","Qty2","","Qty1",v.Local.sRowDetail(23),"Seq_Desc",v.Local.sWCDesc,"UM","HR","Rate",v.Local.sCost,"RunTime",v.Local.fTimeConv,"Part","","LMO","L","Sequence",V.Local.iSequence,"WC",v.Local.sHeaderDetail(v.Local.x),"SetupTime",v.Local.sSetupTime,"Customer",v.Local.scustomer,"CustPart","","OpCode","")
+								f.Intrinsic.Control.EndIf
+							f.Intrinsic.Control.Else
+								'It's Material
+								'Grab material cost first
+								'F.Intrinsic.Debug.ShowCallerInfo
+								f.Intrinsic.String.Build("SELECT AMT_ALT_COST, DESCRIPTION FROM V_INVENTORY_MSTR WHERE part='{0}'",v.Local.sRowDetail(v.Local.x),v.Local.ssql)
+								f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+								F.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+								v.Local.sMatCost.Set(v.Local.sret(0))
+								v.Local.sWCDesc.Set(v.Local.sret(1))
+								F.Intrinsic.Control.CallSub(uploadRTR,"Number",v.Local.sNewPartNumber,"Desc",v.Local.srowdetail(2),"PL",v.Local.sRowDetail(1),"LeadTime","","Qty10","","Qty9","","Qty8","","Qty7","","Qty6","","Qty5","","Qty4","","Qty3","","Qty2","","Qty1",v.Local.sRowDetail(23),"Seq_Desc",v.Local.sWCDesc,"UM","KG","Rate",v.Local.sMatCost,"RunTime",v.Local.sRowDetail(10),"Part",v.Local.sRowDetail(v.Local.x),"LMO","M","Sequence",V.Local.iSequence,"WC","","SetupTime","","Customer",v.Local.sCustomer,"CustPart","","OpCode","")
+							f.Intrinsic.Control.EndIf
+						f.Intrinsic.Control.EndIf
+					f.Intrinsic.Control.Next(v.Local.x)
+				f.Intrinsic.Control.EndIf
+				'''''''''''''''''''''''''''''''''''''''''''''
+				'''''''''''''''''''''''''''''''''''''''''''''
+				'END OF ROUTING BEHEMOTH
+				'''''''''''''''''''''''''''''''''''''''''''''
+				'''''''''''''''''''''''''''''''''''''''''''''
+				
+				'Format the BOM
+				f.Intrinsic.Control.If(v.Local.bBOM,=,true)
+					f.Intrinsic.String.Build("SELECT AMT_ALT_COST, DESCRIPTION FROM V_INVENTORY_MSTR WHERE part='{0}'",v.Local.sRowDetail(v.Local.x),v.Local.ssql)
+					f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+					F.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+					v.Local.sMatCost.Set(v.Local.sret(0))
+					v.Local.sWCDesc.Set(v.Local.sret(1))
+					f.Intrinsic.Control.CallSub(uploadBOM,"Part",v.Local.sNewPartNumber,"Rev","","Qty",v.Local.sRowDetail(23),"UM","EA","Desc",v.Local.sWCDesc,"Vendor","","Category","","Source","F","Parent",v.Screen.frmQuoteCreate!txtBOM.text)
+				f.Intrinsic.Control.EndIf
+			f.Intrinsic.Control.EndIf
+		f.Intrinsic.Control.Next(v.Local.j)
+	f.Intrinsic.Control.Next(V.Local.i)
+	
+	f.Intrinsic.Control.If(v.Local.bQuote,=,true,"or",v.Local.bSales,=,true)
+		'Check if customer exist
+		v.Local.ssql.Set("SELECT CUSTOMER FROM V_CUSTOMER_MASTER WHERE CUSTOMER='{0}'")
+		F.Intrinsic.String.Build(v.Local.ssql,v.Local.scustomer.Trim,v.Local.ssql)
+		f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sret)
+		f.Intrinsic.Control.If(v.Local.sret.Trim,=,"")
+			f.Intrinsic.UI.Msgbox("Customer not found, please try again.")
+			F.Intrinsic.UI.CloseWaitDialog
+			f.Intrinsic.Control.ExitSub
+		f.Intrinsic.Control.EndIf
+		
+		F.Intrinsic.String.Concat("LD",V.Caller.Terminal,V.Caller.CompanyCode,V.Local.sFile)
+		F.Intrinsic.String.Concat(V.Caller.FilesDir,"\",V.Local.sFile,V.Local.sFileDir)
+		F.Intrinsic.File.String2File(V.Local.sFileDir,V.global.sBuildData)
+		
+		'Backup File then upload
+		F.Intrinsic.String.Concat(V.Caller.TempDir,"\",V.Local.sFile,"-Test.txt",V.Local.sTemp)
+		F.Intrinsic.File.String2File(V.Local.sTemp,V.global.sBuildData)
+		F.Intrinsic.String.Concat(V.Caller.CompanyCode,"!*!",V.Caller.User,"!*!",V.Local.sFile,V.Local.sParams)
+		F.Global.General.CallWrapperSync(6004,V.Local.sParams)
+		
+		F.Intrinsic.String.Concat(V.Caller.FilesDir,"\","ORDQTE.txt",v.Local.stemp)
+		f.Intrinsic.File.File2String(v.Local.stemp,v.Local.squote)
+		f.Intrinsic.Math.IsNumeric(v.Local.sQuote,v.Local.bCheck)
+		
+		f.Intrinsic.Control.If(v.Local.bCheck,=,false)
+			f.Intrinsic.UI.Msgbox("No quote created, see error log.  Program will now exit.")
+			f.Intrinsic.UI.CloseWaitDialog
+			F.ODBC.Connection!con.Close
+			f.Intrinsic.Control.ExitSub
+		f.Intrinsic.Control.EndIf
+		
+		'Write back to CSV after creation
+		F.Intrinsic.File.String2File(V.Local.sFiles,V.Local.sNewContents)
+		
+		'Reloop to add in the descriptions
+		f.Intrinsic.Control.For(v.Local.j,1,v.Local.lOBOB,1)
+			F.Intrinsic.Control.If(v.local.sContent(v.Local.j).trim,<>,"")
+				f.Intrinsic.String.SplitCSV(v.Local.sContent(v.Local.j),v.Local.sRowDetail)
+				f.Intrinsic.String.LPad(v.Local.j,"0",3,v.Local.sline)
+				
+				f.Intrinsic.Control.If(v.Local.bQuote,=,true)
+					f.Intrinsic.String.Concat(v.Local.sMessage,"Quote Successfully Created.",v.Local.sMessage)
+					v.Local.SSQL.Set("INSERT INTO QUOTE_LN_TEXT (QUOTE_NUMBER,QUOTE_LINE,QUOTE_TYPE,TEXT) VALUES('{0}','{1}0','{2}','{3}')")
+					f.Intrinsic.String.Build(v.Local.sSql,v.Local.squote,v.Local.sLine,"9999",v.Local.srowdetail(3),v.Local.SSQL)
+					f.ODBC.Connection!con.execute(v.Local.SSQL)
+				f.Intrinsic.Control.Else
+					'ORDER_LN_TEXT
+					v.Local.SSQL.Set("INSERT INTO ORDER_LN_TEXT (ORDER_NUM,ORDER_LINE,ORDER_TYPE,TEXT) VALUES('{0}','{1}0','{2}','{3}')")
+					f.Intrinsic.String.Build(v.Local.sSql,v.Local.squote,v.Local.sLine,"9999",v.Local.srowdetail(3),v.Local.SSQL)
+					f.ODBC.Connection!con.execute(v.Local.SSQL)
+					f.Intrinsic.String.Concat(v.Local.sMessage,"Sales Order Successfully Created.",v.Local.sMessage)
+				
+				f.Intrinsic.Control.EndIf
+			f.Intrinsic.Control.EndIf
+		f.Intrinsic.Control.Next(v.Local.j)
+			
+		f.Intrinsic.UI.CloseWaitDialog
+		
+		'Open the Quote Form
+		f.Intrinsic.Control.If(v.Local.bQuote,=,true)
+			F.Intrinsic.String.Concat(V.Local.sQuote,"!*!O",v.Local.sparams)
+			f.Global.General.CallWrapperAsync(251000,v.local.sparams)
+		f.Intrinsic.Control.EndIf
+		'Open the Quote Form
+		f.Intrinsic.Control.If(v.Local.bSales,=,true)
+			F.Intrinsic.String.Concat(V.Local.sQuote,"!*!O!*!",v.Local.scustomer,v.Local.sparams)
+			f.Global.General.CallWrapperAsync(200000,v.local.sparams)
+		f.Intrinsic.Control.EndIf
+		
+	f.Intrinsic.Control.EndIf
+		
+	f.Intrinsic.Control.If(v.Local.bPart,=,true)
+		'Parts have been created, write back to CSV after creation
+		F.Intrinsic.File.String2File(V.Local.sFiles,V.Local.sNewContents)
+		f.Intrinsic.UI.CloseWaitDialog
+		f.Intrinsic.String.Concat(v.Local.sMessage,"Parts Successfully Created.",v.Local.sMessage)
+	f.Intrinsic.control.EndIf
+	
+	f.Intrinsic.Control.If(v.Local.bRouters,=,true)
+		'Bring string into file
+		V.Local.sfilename.Set("ROUTERHD.TXT")
+		F.Intrinsic.String.Concat(V.Caller.FilesDir,"\",V.Local.sfilename,V.Local.sfiledir)
+		F.Intrinsic.File.String2File(V.Local.sfiledir,V.Global.sBuildRotr)
+		
+		'Upload into Global Shop
+		F.Global.General.CallWrapperSync(50,"UPLRTRH/A/X")
+		F.Intrinsic.UI.CloseWaitDialog
+		f.Intrinsic.String.Concat(v.Local.sMessage,"Routers Successfully Created.",v.Local.sMessage)
+	f.Intrinsic.control.EndIf
+	
+	f.Intrinsic.Control.If(v.Local.bBOM,=,true)
+		'Bring string into File
+		V.Local.sfilename.Set("BOMC.txt")
+		F.Intrinsic.String.Concat(V.Caller.FilesDir,"\",V.Local.sfilename,V.Local.sfiledir)
+		f.Intrinsic.File.String2File(v.Local.sfiledir,v.Global.sBuildBOMs)
+		
+		'Delete if exists
+		f.Intrinsic.String.Build("Delete from BOM_Eng where part IN ('{0}')",v.Screen.frmQuoteCreate!txtBOM.text,V.Local.ssql)
+		f.ODBC.Connection!con.Execute(V.Local.ssql)
+		f.Intrinsic.String.Build("Delete from bom_mstr where parent IN ('{0}')",v.Screen.frmQuoteCreate!txtBOM.text,V.Local.ssql)
+		F.ODBC.Connection!con.execute(V.Local.ssql)
+		
+		'Upload
+		F.Intrinsic.String.Concat(V.Caller.CompanyCode,"1","UPLBOMC",V.Local.sparams)
+		F.Intrinsic.Task.LaunchGSSSync("UPL001A","-c",V.Local.sparams)
+		f.Intrinsic.UI.CloseWaitDialog
+		f.Intrinsic.String.Concat(v.Local.sMessage,"BOM Successfully Created.",v.Local.sMessage)
+	f.Intrinsic.Control.EndIf
+	
+	'f.Intrinsic.UI.Msgbox(v.Local.sMessage)
+	f.ODBC.Connection!con.Close
+	f.Intrinsic.Control.End
+f.Intrinsic.Control.Catch
+	f.Intrinsic.UI.Msgbox(v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+
+Program.Sub.DragDrop.End
+
+Program.Sub.cmdBOMBrowse_Click.Start
+V.Local.sRet.Declare(String)
+V.Local.sTitles.Declare(String)
+V.Local.iWidths.Declare(String)
+V.Local.ssql.Declare(String)
+
+F.intrinsic.string.split("PARENT*!*DESCRIPTION","*!*",V.local.sTitles)
+F.intrinsic.string.split("2000*!*3000","*!*",V.local.iWidths)
+
+V.Local.ssql.set("select PART, DESCRIPTION from V_INVENTORY_MSTR ORDER BY PART")
+
+F.intrinsic.ui.browser("Select a Customer",con,v.Local.ssql,V.local.sTitles,V.local.iWidths,V.local.sRet)
+
+F.intrinsic.control.if(V.local.sRet,"=","***CANCEL***")
+F.intrinsic.control.else
+	F.intrinsic.string.split(V.local.sRet,"*!*",V.local.sRet)
+	gui.frmQuoteCreate.txtBOM.Text(v.Local.sRet(0))
+F.Intrinsic.Control.endif
+Program.Sub.cmdBOMBrowse_Click.End
+
+Program.Sub.uploadBOM.Start
+v.Local.sError.Declare(String)
+V.Local.sLine.Declare(String)
+V.Local.sParent.Declare(String)
+V.Local.sPart.Declare(String)
+V.Local.sSeq.Declare(String)
+V.Local.sDescription.Declare(String)
+V.Local.sCount.Declare(String)
+V.Local.sUM.Declare(String)
+V.Local.sCategory.Declare(String)
+V.Local.sSource.Declare(String)
+V.Local.sMisc.Declare(String)
+V.Local.iFor.Declare(Long)
+V.Local.i7.Declare(Long)
+V.Local.sRev.Declare(String)
+V.Local.schild.Declare(String)
+V.Local.sqty.Declare(String)
+V.Local.spno.Declare(String)
+V.Local.suom.Declare(String)
+V.Local.sDesc.Declare(String)
+V.Local.spad.Declare(String)
+V.Local.spad1.Declare(String)
+V.Local.spad2.Declare(String)
+V.Local.spad3.Declare(String)
+V.Local.sRMLine.Declare(String)
+V.Local.sRMParent.Declare(String)
+v.Local.ssql.Declare(String)
+V.Local.sVendcode.Declare(String)
+v.Local.sPL.Declare(string)
+V.Local.sTempCategory.Declare(String)
+
+F.Intrinsic.String.RPad(v.Args.Part," ",17,V.Local.sPart)
+F.Intrinsic.String.Left(V.Local.sPart,17,V.Local.sPart)
+
+F.Intrinsic.String.RPad(v.Args.Rev," ",3,V.Local.sRev)
+F.Intrinsic.String.Left(V.Local.sRev,3,V.Local.sRev)
+
+'Parent
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Args.parent,v.global.sBuildBOMs)
+
+'Part & Rev put together
+F.Intrinsic.String.GSSPartString(V.Local.sPart,V.Local.sRev,V.Local.sPart)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.sPart,v.global.sBuildBOMs)
+
+'Quantity
+Function.Intrinsic.String.Format(v.Args.QTY,"####.0000", variable.local.sqty)
+F.Intrinsic.String.LPad(variable.local.sqty,"0",16,V.Local.sqty)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.sqty,v.global.sBuildBOMs)
+
+'UM
+F.Intrinsic.String.RPad(v.Args.UM," ",2,V.Local.sUM)
+F.Intrinsic.String.Left(V.Local.sUM,2,V.Local.sUM)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.sUM,v.global.sBuildBOMs)
+
+'Descriptions
+F.Intrinsic.String.RPad(v.Args.desc," ",30,V.Local.sdesc)
+F.Intrinsic.String.Left(V.Local.sdesc,30,V.Local.sdesc)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.sdesc,v.global.sBuildBOMs)
+
+'Free Pad
+F.Intrinsic.String.RPad(V.Local.spad1," ",60,V.Local.spad1)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.spad1,v.global.sBuildBOMs)
+
+'Vendor Code
+F.Intrinsic.String.RPad(v.Args.Vendor," ",6,V.Local.sVendcode)
+F.Intrinsic.String.Left(V.Local.sVendcode,6,V.Local.sVendcode)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.svendcode,v.global.sBuildBOMs)
+
+'Free Pad
+F.Intrinsic.String.RPad(V.Local.spad2," ",47,V.Local.spad2)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.spad2,v.global.sBuildBOMs)
+
+'Category
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.args.Category,v.global.sBuildBOMs)
+
+'Source
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.args.Source,v.global.sBuildBOMs)
+
+'Free Pad
+F.Intrinsic.String.RPad(V.Local.spad3," ",63,V.Local.spad3)
+F.Intrinsic.String.Concat(v.global.sBuildBOMs,V.Local.spad3,v.global.sBuildBOMs)
+
+f.Intrinsic.String.Concat(v.Global.sBuildBOMs,v.Ambient.NewLine,v.Global.sBuildBOMs)
+
+
+Program.Sub.uploadBOM.End
+
+Program.Sub.uploadQTE.Start
+v.Local.dDateNow.Declare(Date)
+v.local.sLocation.Declare(string)
+v.local.nItemCtr.declare(long)
+v.local.fCost.declare(Float)
+v.local.sUser1.declare(string)
+v.local.stemp.declare(string)
+v.local.sUser3.declare(string)
+v.local.fExtension.declare(Float)
+v.local.fExtTotal.declare(Float)
+v.local.sCustDesc.declare(string)
+v.local.sSplitDesc.declare(string)
+v.local.nSplitCount.declare(Float)
+v.local.sCustTag.declare(string)
+v.local.sString.declare(string)
+v.local.nSplitchar.Declare(long)
+v.local.sCustTagSplit.declare(string)
+v.local.nCount.declare(long)
+v.local.nCount2.declare(long)
+v.local.sTax.declare(string)
+v.local.nSplitDesc.declare(long)
+v.local.sSurveyID.declare(string)
+v.local.sRtrFlag.declare(string)
+v.local.fLength.declare(Float)
+v.local.fWidth.declare(Float)
+V.Local.SSQL.Declare(STRING) 
+v.Local.sret.Declare(string)
+v.Local.sqty.Declare(string)
+v.Local.fMatSell.Declare(float)
+v.Local.fMatSEtupSell.Declare(float)
+v.Local.fMatRunSell.Declare(Float)
+V.Local.fLabourRunSell.Declare(float)
+v.Local.fLabourSetSell.Declare(float)
+v.Local.fLabourTotal.Declare(Float)
+v.Local.fLabourSetSell1.Declare(float)
+v.Local.fLabourRunSell1.Declare(float)
+v.Local.fMaterialSell1.Declare(float)
+v.Local.fOutsideSell1.Declare(float)
+v.Local.i.Declare(long)
+v.Local.ftempret.Declare(float)
+v.Local.fRunQty.Declare(float)
+v.Local.sAltDesc.Declare(string)
+V.Local.ftempqty.Declare(float)
+v.Local.ftempcost.Declare(float)
+v.Local.dDateNow.Set(v.Ambient.Now)
+v.Local.fOMarkup.Declare(float)
+
+v.Local.sfinish.Declare(string)
+
+'Set Values
+v.Local.scustomer.Declare(string)
+v.Local.scustomer.Set(v.Args.sCust)
+v.local.sRouterFSQ.declare(string)
+v.Local.sRouterFSQ.Set(v.Args.sFGPart)
+v.Local.sLine.Declare(string)
+v.Local.ddatedue.Declare(date)
+v.local.nOrderQty.declare(float)
+v.Local.nOrderQty.Set(v.Args.fQuantityr)
+v.local.sDesc.declare(string)
+v.Local.sDesc.Set(v.Args.sDesc)
+v.local.fPrice.declare(Float)
+v.Local.fPrice.Set(v.Args.fPrice)
+v.Local.sCustPO.Declare(string)
+v.Local.sCustPO.Set(v.Args.sPO)
+v.Local.sMat.declare(string)
+v.Local.sMat.Set(v.Args.sMat)
+v.Local.squoteno.Declare(string)
+v.Local.slongdesc.Declare(string)
+v.Local.slongdesc.Set(v.Args.sLongDesc)
+
+'Static values
+v.Local.suploadtype.Declare(string)
+v.Local.suploadtype.Set(v.Args.sflag)
+v.Local.scustomerpart.Declare(string,"")
+v.local.sUM.declare(string,"EA")
+v.local.sProdLineCD.declare(string)
+v.Local.sProdLineCD.Set(v.Args.sPL)
+
+F.Intrinsic.String.RPad(V.Local.sUploadType.Trim," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Customer
+F.Intrinsic.String.RPad(V.local.sCustomer.Trim," ",7,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Order Number / Quote
+F.Intrinsic.String.RPad(v.Local.squoteno," ",7,V.Local.sQuoteNo)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sQuoteNo,v.global.sbuilddata)
+'Freight
+F.Intrinsic.String.RPad("","0",10,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank
+F.Intrinsic.String.RPad(" "," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank
+F.Intrinsic.String.RPad(" "," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Date Due
+F.Intrinsic.String.Format(V.Local.dDateNow,"YYYYMMDD",V.Local.sTemp)
+F.Intrinsic.String.RPad(v.Local.stemp," ",8,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Date Ordered
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank 4 user fields
+F.Intrinsic.String.RPad(" "," ",120,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'User field 5
+F.Intrinsic.String.RPad(" "," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'GSS User
+F.Intrinsic.String.RPad(V.Caller.User," ",8,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Cust PO
+F.Intrinsic.String.RPad(V.Local.sCustPO," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'After Cust PO
+F.Intrinsic.String.RPad(" "," ",15,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'FreightCurrencyFlag 1 to used order currency
+F.Intrinsic.String.RPad("1"," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+
+'Blank Shipping data not used here except Ship Via and Carrier
+'(putting an S would require reading the ShipTo Address and populating it.
+F.Intrinsic.String.RPad(" "," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Ship Via (20) try not putting in the Ship-Via and Carrier V.Screen.FMain!txtShipMethod.Text
+F.Intrinsic.String.RPad(" "," ",20,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Carrier code 
+F.Intrinsic.String.RPad(" "," ",6,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Was blanking all 382 but reduced for 1 + 20 + 6 above
+F.Intrinsic.String.RPad(" "," ",355,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+
+'Transfer Location
+F.Intrinsic.String.RPad(V.local.sLocation," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank
+F.Intrinsic.String.RPad(" "," ",85,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Line Number 3 char
+F.Intrinsic.String.RPad(v.Local.sLine," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Line no zero on the right for record no kinda
+F.Intrinsic.String.RPad("0","0",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Quantity - note position 1353 will be set to 1 to allow if nOrderQty is negative
+F.Intrinsic.Control.If(V.local.nOrderQty,<,0)
+		F.Intrinsic.String.Format(V.local.nOrderQty,"000000000.0000",V.Local.sTemp)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Format(V.local.nOrderQty,"000000000.0000",V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+F.Intrinsic.String.Replace(V.Local.sTemp,".","",V.Local.sTemp)
+F.Intrinsic.String.Replace(V.Local.sTemp,"-","",V.Local.sTemp)
+F.Intrinsic.String.LPad(V.Local.sTemp," ",13,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Freight
+F.Intrinsic.String.RPad("0","0",10,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'UM not required can pull from inventory
+F.Intrinsic.String.RPad(V.Local.sUM.Trim," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Part
+F.Intrinsic.String.RPad(V.local.sRouterFSQ," ",20,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+f.Data.Dictionary.AddItem("dict",v.Local.stemp,v.Local.slongdesc)
+'blank
+F.Intrinsic.String.RPad(" "," ",18,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Location
+F.Intrinsic.String.RPad(V.local.sLocation," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sPrice - Try with a value of 1 as in 0.0001 16 (10,6)
+F.Intrinsic.String.Format(V.Local.fPrice,"0000000000.000000",V.Local.sTemp)
+F.Intrinsic.String.Replace(V.Local.sTemp,".","",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sPrice Quote price ?  16 (10,6)
+F.Intrinsic.String.Format(V.Local.fPrice,"0000000000.000000",V.Local.sTemp)
+F.Intrinsic.String.Replace(V.Local.sTemp,".","",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sCost  16 (10,6)
+F.Intrinsic.String.Format(V.Local.fCost,"0000000000.000000",V.Local.sTemp)
+F.Intrinsic.String.Replace(V.Local.sTemp,".","",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sLineDesc
+F.Intrinsic.String.Left(V.Local.sDesc,30,V.Local.sTemp)
+F.Intrinsic.String.RPad(V.Local.sTemp," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Global.sProdLineCode-not required - This will be required as we are creating items that might not be parts
+F.Intrinsic.String.RPad(V.Local.sProdLineCD," ",3,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Date - Line order
+F.Intrinsic.String.Format(V.Local.dDateNow,"YYYYMMDD",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Date - Line promised
+'F.Intrinsic.Date.DateAddWorkdays(V.Ambient.Date,V.Local.nLeadtime,V.Local.dDateProm)
+'F.Intrinsic.String.Format(V.Local.dDateProm,"YYYYMMDD",V.Local.sTemp)
+F.Intrinsic.String.Format(V.Local.dDateNow,"YYYYMMDD",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'	'User Fields 5 x 30
+'User Fields 1 x 30
+F.Intrinsic.String.RPad(V.Local.sfinish.Trim," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp.Left30,v.global.sbuilddata)
+'User Fields 1 x 30
+F.Intrinsic.String.RPad(" "," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'User Fields 1 x 30
+F.Intrinsic.String.RPad(V.Local.sUser3.Trim," ",30,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp.Left30,v.global.sbuilddata)
+'User Fields 2 x 30
+F.Intrinsic.String.RPad(" "," ",60,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+
+'Blank - This should be Extended Amount 16 length at 1018
+'Calculate extension for Credit Limit check
+F.Intrinsic.Math.Mult(V.local.nOrderQty,V.Local.fPrice,V.Local.fExtension)
+F.Intrinsic.Math.Add(V.Local.fExtTotal,V.Local.fExtension,V.Local.fExtTotal)
+F.Intrinsic.String.RPad(" "," ",16,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'NO-DLVR-BEF / MUST-DLVR-BY YYYYMMDD / YYYYMMDD
+F.Intrinsic.String.RPad(" "," ",16,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Text fields 10 x 30 and others First character should be T for text
+'Customer Desc
+F.Intrinsic.String.LimitSplit(V.Local.sCustDesc,30,V.Local.sSplitDesc)
+F.Intrinsic.Math.Add(V.Local.sSplitDesc.UBound,1,V.Local.nSplitCount)
+
+F.Intrinsic.String.Rtrim(V.Local.sCustTag,V.Local.sCustTag)
+V.Local.sString.Redim(-1,-1)
+V.Local.sCustTagSplit.Set("")
+F.Intrinsic.String.Concat(V.Local.sCustTagSplit,V.Local.sCustTag,V.Local.sCustTag)
+F.Intrinsic.String.Replace(V.Local.sCustTag,V.Ambient.Tab," ",V.Local.sCustTag)
+'Place Customer Tag in sString array
+F.Intrinsic.String.LimitSplit(V.Local.sCustTag,30,V.Local.sString)
+F.Intrinsic.Math.Add(V.Local.sString.UBound,1,V.Local.nSplitChar)
+
+F.Intrinsic.Math.Add(V.Local.sSplitDesc.UBound,V.Local.nSplitChar,V.Local.nSplitChar)
+F.Intrinsic.Control.For(V.Local.nCount2,1,V.Local.sString.UBound,1)
+	F.Intrinsic.String.Concat("        ",V.Local.sString(V.Local.nCount2),V.Local.sString(V.Local.nCount2))
+F.Intrinsic.Control.Next(V.Local.nCount2)
+'Redimension 1 greater as counter was incremented to 1 more. 10 is the max as we only send 300 char to text tables
+F.Intrinsic.Math.Add(V.Local.nSplitChar,1,V.Local.nCount2)
+V.Local.sSplitDesc.RedimPreserve(0,V.Local.nCount2)
+
+V.Local.nCount2.Set(0)
+'Then from one position past the number of rows of sSplitDesc add the Cust Tag
+F.Intrinsic.Control.For(V.Local.nCount,V.Local.nSplitCount,V.Local.nSplitChar,1)
+	V.Local.sSplitDesc(V.Local.nCount).Set(V.Local.sString(v.Local.nCount2))
+	F.Intrinsic.Math.Add(V.Local.nCount2,1,V.Local.nCount2)
+F.Intrinsic.Control.Next(V.Local.nCount)
+F.Intrinsic.Control.If(V.Local.sSplitDesc.UBound,>,-1)
+		V.Local.sTemp.Set("T")
+		F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+		V.Local.sSplitDesc.RedimPreserve(0,9)
+		F.Intrinsic.Control.For(V.Local.nSplitDesc,0,9,1)
+			F.Intrinsic.String.Replace(V.Local.sSplitDesc(V.Local.nSplitDesc),V.Ambient.Tab,"",V.Local.sSplitDesc(V.Local.nSplitDesc))
+			F.Intrinsic.String.RPad(V.Local.sSplitDesc(V.Local.nSplitDesc)," ",30,V.Local.sTemp)
+			F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+		F.Intrinsic.Control.Next(V.Local.nSplitDesc)
+	F.Intrinsic.Control.Else
+		V.Local.sTemp.Set(" ")
+		F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+		F.Intrinsic.String.Replace(V.Local.sTemp,V.Ambient.Tab,"",V.Local.sTemp)
+		F.Intrinsic.String.RPad(" "," ",300,V.Local.sTemp)
+		F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+F.Intrinsic.Control.EndIf
+
+'DO NOT NEED TAX STATUS FLAG 1351
+F.Intrinsic.String.RPad(V.Local.sTax.Trim," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank Line Type / Negative Flag / Price Flag / Suff Inventory 1352 / 1353 / 1354 / 1355
+F.Intrinsic.String.RPad(" "," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Negative Flag 1353 if Quantity is negative set flag to 1 ================================NEGATIVE
+F.Intrinsic.Control.If(V.local.nOrderQty,<,0)
+		F.Intrinsic.String.RPad("1"," ",1,V.Local.sTemp)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.RPad(" "," ",1,V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'1355 Sufficient Inventory check
+F.Intrinsic.String.RPad(" "," ",2,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Survey ID
+F.Intrinsic.String.LPad(V.local.sSurveyID.Trim,"0",8,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sRtrFlag
+F.Intrinsic.String.RPad(V.Local.sRtrFlag," ",1,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank
+F.Intrinsic.String.RPad(" "," ",37,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sLength 12 remove decimal
+F.Intrinsic.String.Format(V.Local.fLength,"00000000.0000",V.Local.sTemp)
+F.Intrinsic.String.Replace(V.Local.sTemp,".","",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'V.Local.sWidth 12 (8,4)
+F.Intrinsic.String.Format(V.Local.fWidth,"00000000.0000",V.Local.sTemp)
+F.Intrinsic.String.Replace(V.Local.sTemp,".","",V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'Blank
+F.Intrinsic.String.RPad(" "," ",92,V.Local.sTemp)
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Local.sTemp,v.global.sbuilddata)
+'ORDUPCM3 will fill to 4636 string length
+
+F.Intrinsic.String.Concat(v.global.sbuilddata,V.Ambient.NewLine,V.global.sbuilddata)
+
+Program.Sub.uploadQTE.End
+
+Program.Sub.uploadRTR.Start
+'arguments, Number, part, RunTime,  Comment, um, lmo,workcenter, overlap
+'LMO need to be C for comment
+'LMO needs to be L for workcenter
+'LMO needs to be M for material RunTime is quantity when LMO is M
+V.Local.iCt.Declare(Long)
+V.Local.shold.Declare(String)
+V.Local.iPLine.Declare(Long)
+V.Local.iPSeq.Declare(Long)
+V.Local.sSQL.Declare(String)
+V.Local.sOp.Declare(String)
+V.Local.sDesc.Declare(String)
+V.Local.sLMO.Declare(String)
+
+
+'Router Number
+F.Intrinsic.String.RPad(V.Args.Number," ",20,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,20,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Header Desc
+F.Intrinsic.String.RPad(V.Args.Desc," ",30,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,30,V.Local.sHold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Sequence
+F.Intrinsic.String.Format(V.Args.Sequence,"000000",V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'LMO
+F.Intrinsic.String.RPad(V.Args.LMO," ",1,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,1,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Part
+F.Intrinsic.String.RPad(V.Args.Part," ",20,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,20,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Workcenter
+F.Intrinsic.String.RPad(V.Args.WC," ",4,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,4,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Seq Desc
+F.Intrinsic.String.RPad(V.Args.Seq_Desc," ",30,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,30,V.Local.sDesc)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Setup
+F.Intrinsic.String.LPad(v.Args.setuptime," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Runtime/Material
+F.Intrinsic.Control.If(V.Args.RunTime.Trim,<>,"")
+	F.Intrinsic.String.LPad(V.Args.RunTime," ",16,V.Local.shold)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.LPad("00000000000.0000"," ",16,V.Local.shold)
+F.Intrinsic.Control.EndIf
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Customer
+F.Intrinsic.String.RPad(v.Args.customer," ",6,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,6,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Orig Date
+F.Intrinsic.String.Format(V.Ambient.Date,"MMDDYY",v.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Op Code
+F.Intrinsic.String.RPad(v.Args.OpCode," ",6,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,6,V.Local.sOp)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Rate
+F.Intrinsic.Control.If(V.Args.Rate,=,"")
+	V.Local.shold.Set("00000000000.0000")
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.If(V.Args.Rate,=,0)
+		V.Local.shold.Set("00000000000.0000")
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Format(V.Args.Rate,"#.0000",V.Local.shold)
+		F.Intrinsic.String.LPad(V.Local.shold,"0",16,V.Local.shold)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'UM
+F.Intrinsic.String.RPad(V.Args.UM," ",2,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,2,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Desc 1-3
+F.Intrinsic.String.RPad(""," ",71,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,71,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.RPad(""," ",71,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,71,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.RPad(""," ",71,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,71,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Quantity 1-10
+F.Intrinsic.String.LPad(V.Args.Qty1,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty2,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty3,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty4,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Purge
+F.Intrinsic.String.LPad(""," ",1,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,1,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Frequency
+F.Intrinsic.String.LPad(""," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Machine
+F.Intrinsic.String.LPad("0.00","0",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Overlap
+F.Intrinsic.String.LPad(""," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'WC Factor
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,"                ",v.Global.sBuildRotr)
+
+'Min Flag
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,"N",v.Global.sBuildRotr)
+
+'Min Outside
+F.Intrinsic.String.LPad("0.0000"," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Crew Size
+F.Intrinsic.String.LPad("0.0000"," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Lead Time
+F.Intrinsic.String.LPad(V.Args.LeadTime," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Part Loc
+F.Intrinsic.String.RPad(""," ",2,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,2,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Tooling Switch
+F.Intrinsic.String.RPad(""," ",1,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,1,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Sort Code
+F.Intrinsic.String.RPad(""," ",20,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,20,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Drawing No
+F.Intrinsic.String.RPad(""," ",30,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,30,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'PAD
+F.Intrinsic.String.RPad(" "," ",250,V.Local.shold)
+F.Intrinsic.String.Concat(v.global.sBuildRotr,V.Local.shold,v.global.sBuildRotr)
+
+'Scrap
+F.Intrinsic.String.LPad("0.000"," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Cust Part
+F.Intrinsic.String.RPad(v.Args.custpart," ",20,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,20,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Sort 1
+F.Intrinsic.String.RPad(""," ",20,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,20,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Sort 2
+F.Intrinsic.String.RPad(""," ",20,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,20,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Commission
+F.Intrinsic.String.LPad("0.00"," ",16,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Quantities
+F.Intrinsic.String.LPad(V.Args.Qty5,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty6,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty7,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty8,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty9,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+F.Intrinsic.String.LPad(V.Args.Qty10,"0",16,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Signoff User
+F.Intrinsic.String.RPad(""," ",8,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,8,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Signoff Type
+F.Intrinsic.String.RPad(""," ",1,V.Local.shold)
+F.Intrinsic.String.Left(V.Local.shold,1,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+'Prod Line
+F.Intrinsic.String.lpad(V.Args.PL," ",2,V.Local.shold)
+f.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Local.shold,v.Global.sBuildRotr)
+
+F.Intrinsic.String.Concat(v.Global.sBuildRotr,v.Ambient.NewLine,v.Global.sBuildRotr)
+Program.Sub.uploadRTR.End
+
+Program.Sub.uploadPTS.Start
+f.Intrinsic.Control.Try
+	v.Local.ssql.Declare(string)
+	v.Local.spart.Declare(string)
+	V.Local.sret.Declare(string)
+	v.Local.sdesc.Declare(string)
+	v.Local.sPL.Declare(string)
+	v.Local.sLongDesc.Declare(string)
+	v.Local.spart.Set(v.Args.spart)
+	v.Local.sdesc.Set(v.Args.sdesc)
+	v.Local.sPL.Set(v.Args.sPL)
+	v.Local.sLongDesc.Set(v.Args.sLongDesc)
+	F.Global.Inventory.CreatePart(v.Local.spart,"EA",v.Local.sdesc,"",v.Local.sPL,"F","","","","NOMAINT ")
+	
+	'Check if part extra description helps
+	F.Intrinsic.String.Build("SELECT * FROM INV_EXTRA_TEXT WHERE PART='{0}'",v.Local.spart,v.Local.ssql)
+	f.ODBC.Connection!con.Executeandreturn(v.Local.ssql,v.Local.sret)
+	
+	'Update Long Description
+	f.Intrinsic.Control.If(v.Local.sret.Trim,<>,"")
+		f.Intrinsic.String.Build("UPDATE INV_EXTRA_TEXT SET TEXT='{0}' WHERE PART='{1}'",v.Local.sLongDesc,v.Local.spart)
+		f.ODBC.Connection!con.execute(v.Local.ssql)
+	'Insert the Long Description
+	f.Intrinsic.Control.Else
+		F.Intrinsic.String.Build("INSERT INTO INV_EXTRA_TEXT (PART,TEXT) VALUES('{0}','{1}')",v.Local.spart,v.Local.sLongDesc,v.Local.ssql)
+		F.ODBC.Connection!con.execute(v.Local.ssql)
+	f.Intrinsic.Control.EndIf
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.UI.Msgbox(v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+
+Program.Sub.uploadPTS.End
+
